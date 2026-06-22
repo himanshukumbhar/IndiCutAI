@@ -12,4 +12,7 @@ dependencies:
 
   image_picker: ^1.1.2
   http: ^1.2.1
+
+flutter:
+  uses-material-design: true
   
