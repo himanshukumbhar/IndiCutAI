@@ -25,21 +25,17 @@ jobs:
 
       - name: Create Complete Flutter Project Structure
         run: |
-          # बैकअप लेंगे हमारी बनाई फाइलों का
           mkdir -p temp_lib
           cp -r lib/* temp_lib/ 2>/dev/null || true
           cp pubspec.yaml temp_pubspec.yaml 2>/dev/null || true
           
-          # पूरा नया प्रोजेक्ट जेनरेट करेंगे ताकि android/ और gradle फोल्डर बन जाएं
           rm -rf lib pubspec.yaml
           flutter create --org com.indicut.ai --project-name indicut_ai .
           
-          # वापस अपनी फाइलों को नए प्रोजेक्ट में रिप्लेस कर देंगे
           rm -rf lib/main.dart
           cp -r temp_lib/* lib/ 2>/dev/null || true
           cp temp_pubspec.yaml pubspec.yaml 2>/dev/null || true
           
-          # टेम्परेरी फोल्डर्स डिलीट करेंगे
           rm -rf temp_lib temp_pubspec.yaml
 
       - name: Install dependencies
@@ -47,4 +43,10 @@ jobs:
 
       - name: Build APK
         run: flutter build apk --debug
-        
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          
