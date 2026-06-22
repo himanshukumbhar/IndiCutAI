@@ -1,0 +1,16 @@
+name: indicut_ai
+description: "CapCut India like AI Video and Image Editor"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  image_picker: ^1.1.2       # फोटो/वीडियो अपलोड के लिए
+  google_mobile_ads: ^5.1.0  # एड्स से कमाई के लिए
+  http: ^1.2.1               # AI फीचर्स कनेक्ट करने के लिए
+  
