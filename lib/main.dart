@@ -1,8 +1,9 @@
 import 'dart:io';
-import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 void main() {
   runApp(const IndiCutAI());
@@ -42,19 +43,22 @@ class _HomeScreenState extends State<HomeScreen> {
   String _statusText = 'अपनी फोटो या वीडियो अपलोड करें';
   final ImagePicker _picker = ImagePicker();
 
-  // गैलरी से फोटो चुनने का फंक्शन
+  // Hugging Face की फ्री API Key (यहाँ आप अपनी की भी डाल सकते हैं)
+  // अभी के लिए हम एक पब्लिक मॉडल का इस्तेमाल कर रहे हैं
+  final String _hfToken = "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"; // डमी टोकन, यहाँ आपकी असली की आएगी
+
   Future<void> _pickMedia() async {
     final XFile? media = await _picker.pickImage(source: ImageSource.gallery);
     if (media != null) {
       setState(() {
         _selectedImage = File(media.path);
-        _processedImage = null; // नई फोटो चुनने पर पुराना रिजल्ट क्लियर करें
+        _processedImage = null;
         _statusText = 'फोटो अपलोड हो गई है!';
       });
     }
   }
 
-  // AI बैकएंड को कनेक्ट करने का मेन फंक्शन (Enhance & Cutout दोनों के लिए)
+  // असली AI प्रोसेसिंग फंक्शन
   Future<void> _processImageWithAI(String mode) async {
     if (_selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,41 +69,45 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       _isLoading = true;
-      _statusText = mode == 'enhance' ? 'AI आपकी फोटो को साफ़ कर रहा है...' : 'AI बैकग्राउंड हटा रहा है...';
+      _statusText = mode == 'enhance' ? 'AI फोटो क्लियर कर रहा है...' : 'AI बैकग्राउंड हटा रहा है...';
     });
 
     try {
-      // यहाँ हम बैकएंड API का ढांचा तैयार कर रहे हैं
-      // भविष्य में यहाँ अपनी लाइव API URL डालेंगे
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('https://httpbin.org/post'), // अभी टेस्टिंग के लिए डमी URL है
-      );
-      
-      request.files.add(
-        await http.MultipartFile.fromPath('image', _selectedImage!.path),
-      );
-      request.fields['mode'] = mode;
+      // mode के हिसाब से अलग-अलग AI मॉडल का लिंक
+      String modelUrl = mode == 'enhance' 
+          ? 'https://api-inference.huggingface.co/models/TencentARC/GFPGAN' // फोटो क्लियर करने का बेस्ट मॉडल
+          : 'https://api-inference.huggingface.co/models/briaai/RMBG-1.4'; // बैकग्राउंड हटाने का बेस्ट मॉडल
 
-      var response = await request.send();
+      Uint8List imageBytes = await _selectedImage!.readAsBytes();
+
+      var response = await http.post(
+        Uri.parse(modelUrl),
+        headers: {
+          'Authorization': 'Bearer $_hfToken',
+          'Content-Type': 'application/octet-stream',
+        },
+        body: imageBytes,
+      );
 
       if (response.statusCode == 200) {
-        // टेस्टिंग के लिए हम अभी डमी सक्सेस दिखा रहे हैं
-        // जब आपकी असली API लिंक यहाँ लगेगी, तो वो एडिटेड इमेज वापस भेजेगी
-        await Future.delayed(const Duration(seconds: 3)); // लाइव फील के लिए डिले
-        
+        // AI द्वारा एडिट की गई नई इमेज को सेव करना
+        final tempDir = await getTemporaryDirectory();
+        final file = await File('${tempDir.path}/ai_output_${DateTime.now().millisecondsSinceEpoch}.png').create();
+        await file.writeAsBytes(response.bodyBytes);
+
         setState(() {
           _isLoading = false;
-          _processedImage = _selectedImage; // अभी प्रिव्यू के लिए वही फोटो दिखा रहे हैं
+          _processedImage = file;
           _statusText = mode == 'enhance' ? 'फोटो सफलतापूर्वक साफ़ हो गई!' : 'बैकग्राउंड सफलतापूर्वक हट गया!';
         });
       } else {
-        throw Exception('बिल्ड सर्वर एरर');
+        // अगर API लोड ले रही हो या टोकन एरर हो
+        throw Exception('सर्वर रिस्पॉन्स कोड: ${response.statusCode}');
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _statusText = 'गड़बड़ हुई! कृपया दोबारा प्रयास करें।';
+        _statusText = 'अभी सर्वर बिजी है। कृपया 10 सेकंड बाद दोबारा प्रयास करें!';
       });
     }
   }
@@ -125,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // --- प्रिव्यू स्क्रीन ---
             Container(
               height: 300,
               decoration: BoxDecoration(
@@ -169,8 +176,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(color: Color(0xFF00FFCC), fontWeight: FontWeight.bold),
               ),
             const SizedBox(height: 24),
-
-            // --- एड्स एरिया ---
             Container(
               height: 60,
               color: Colors.grey[850],
@@ -178,8 +183,6 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text('Google AdMob Banner Area', style: TextStyle(color: Colors.grey, fontSize: 12)),
             ),
             const SizedBox(height: 24),
-
-            // --- फीचर्स बटन्स ---
             FilledButton.icon(
               onPressed: _isLoading ? null : _pickMedia,
               icon: const Icon(Icons.add_a_photo),
@@ -191,7 +194,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 12),
-
             ElevatedButton.icon(
               onPressed: _isLoading ? null : () => _processImageWithAI('cutout'),
               icon: const Icon(Icons.layers_clear),
@@ -199,7 +201,6 @@ class _HomeScreenState extends State<HomeScreen> {
               style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
             ),
             const SizedBox(height: 12),
-
             ElevatedButton.icon(
               onPressed: _isLoading ? null : () => _processImageWithAI('enhance'),
               icon: const Icon(Icons.auto_awesome),
@@ -207,7 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
               style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
@@ -230,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ],
-         ),
+        ),
       ),
     );
   }
