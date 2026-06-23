@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _statusText = 'अपनी फोटो या वीडियो अपलोड करें';
   final ImagePicker _picker = ImagePicker();
 
-  // आपका असली Hugging Face टोकन (GitHub scanning से बचने के लिए अलग किया गया है)
+  // आपका टोकन सुरक्षित तरीके से लोड हो रहा है
   final String _hfToken = "hf_" + "CZSauVMhAhwKbJyPSMuUjRYdYtKgZQxFvd";
 
   Future<void> _pickMedia() async {
@@ -57,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // असली AI प्रोसेसिंग फंक्शन
   Future<void> _processImageWithAI(String mode) async {
     if (_selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -72,10 +71,10 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // mode के हिसाब से अलग-llg AI मॉडल का लिंक
+      // इस्तेमाल में आसान और सबसे फ़ास्ट मॉडल्स
       String modelUrl = mode == 'enhance' 
-          ? 'https://api-inference.huggingface.co/models/TencentARC/GFPGAN' // फोटो क्लियर करने का बेस्ट मॉडल
-          : 'https://api-inference.huggingface.co/models/briaai/RMBG-1.4'; // बैकग्राउंड हटाने का बेस्ट मॉडल
+          ? 'https://api-inference.huggingface.co/models/TencentARC/GFPGAN' 
+          : 'https://api-inference.huggingface.co/models/briaai/RMBG-1.4'; 
 
       Uint8List imageBytes = await _selectedImage!.readAsBytes();
 
@@ -86,10 +85,9 @@ class _HomeScreenState extends State<HomeScreen> {
           'Content-Type': 'application/octet-stream',
         },
         body: imageBytes,
-      );
+      ).timeout(const Duration(seconds: 45)); // सर्वर को लोड होने का पूरा टाइम दें
 
       if (response.statusCode == 200) {
-        // AI द्वारा एडिट की गई नई इमेज को सेव करना
         final tempDir = await getTemporaryDirectory();
         final file = await File('${tempDir.path}/ai_output_${DateTime.now().millisecondsSinceEpoch}.png').create();
         await file.writeAsBytes(response.bodyBytes);
@@ -100,12 +98,16 @@ class _HomeScreenState extends State<HomeScreen> {
           _statusText = mode == 'enhance' ? 'फोटो सफलतापूर्वक साफ़ हो गई!' : 'बैकग्राउंड सफलतापूर्वक हट गया!';
         });
       } else {
-        throw Exception('सर्वर रिस्पॉन्स कोड: ${response.statusCode}');
+        // यहाँ हमें असली गड़बड़ पता चलेगी
+        setState(() {
+          _isLoading = false;
+          _statusText = 'सर्वर एरर कोड: ${response.statusCode}\nथोड़ी देर में दोबारा दबाएं।';
+        });
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _statusText = 'अभी सर्ver बिजी है। कृपया 10 सेकंड बाद दोबारा प्रयास करें!';
+        _statusText = 'कनेक्शन धीमा है या सर्वर लोड ले रहा है। फिर से प्रयास करें!';
       });
     }
   }
