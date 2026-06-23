@@ -43,7 +43,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String _statusText = 'अपनी फोटो या वीडियो अपलोड करें';
   final ImagePicker _picker = ImagePicker();
 
-  // आपका टोकन सुरक्षित तरीके से लोड हो रहा है
   final String _hfToken = "hf_" + "CZSauVMhAhwKbJyPSMuUjRYdYtKgZQxFvd";
 
   Future<void> _pickMedia() async {
@@ -67,11 +66,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       _isLoading = true;
-      _statusText = mode == 'enhance' ? 'AI फोटो क्लियर कर रहा है...' : 'AI बैकग्राउंड हटा रहा है...';
+      _statusText = mode == 'enhance' ? 'AI फोटो क्लियर कर रहा है (इसमें 1 मिनट तक लग सकता है)...' : 'AI बैकग्राउंड हटा रहा है...';
     });
 
     try {
-      // इस्तेमाल में आसान और सबसे फ़ास्ट मॉडल्स
       String modelUrl = mode == 'enhance' 
           ? 'https://api-inference.huggingface.co/models/TencentARC/GFPGAN' 
           : 'https://api-inference.huggingface.co/models/briaai/RMBG-1.4'; 
@@ -85,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'Content-Type': 'application/octet-stream',
         },
         body: imageBytes,
-      ).timeout(const Duration(seconds: 45)); // सर्वर को लोड होने का पूरा टाइम दें
+      ); // यहाँ से हमने .timeout हटा दिया है ताकि कनेक्शन कटे नहीं
 
       if (response.statusCode == 200) {
         final tempDir = await getTemporaryDirectory();
@@ -98,16 +96,15 @@ class _HomeScreenState extends State<HomeScreen> {
           _statusText = mode == 'enhance' ? 'फोटो सफलतापूर्वक साफ़ हो गई!' : 'बैकग्राउंड सफलतापूर्वक हट गया!';
         });
       } else {
-        // यहाँ हमें असली गड़बड़ पता चलेगी
         setState(() {
           _isLoading = false;
-          _statusText = 'सर्वर एरर कोड: ${response.statusCode}\nथोड़ी देर में दोबारा दबाएं।';
+          _statusText = 'सर्वर रिस्पॉन्स कोड: ${response.statusCode}\nमॉडल अभी लोड हो रहा है, कृपया 15 सेकंड बाद फिर दबाएं।';
         });
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _statusText = 'कनेक्शन धीमा है या सर्वर लोड ले रहा है। फिर से प्रयास करें!';
+        _statusText = 'नेटवर्क एरर! कृपया दोबारा बटन दबाएं।';
       });
     }
   }
@@ -121,12 +118,6 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.workspace_premium, color: Colors.amber),
-            onPressed: () {},
-          )
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -207,32 +198,9 @@ class _HomeScreenState extends State<HomeScreen> {
               label: const Text('AI Enhance (Clear Media)'),
               style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.content_cut),
-                    label: const Text('Trim / Crop'),
-                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.closed_caption),
-                    label: const Text('AI Caption'),
-                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 }
-
