@@ -12,6 +12,7 @@ dependencies:
 
   image_picker: ^1.1.2
   http: ^1.2.1
+  path_provider: ^2.1.2  # यह नया पैकेज हमने यहाँ जोड़ दिया है
 
 flutter:
   uses-material-design: true
